@@ -250,6 +250,33 @@
 
   @media (max-width:560px){ .cards2{grid-template-columns:1fr} }
 
+  /* confirm modal */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(20,20,24,.55);
+    display:none;align-items:center;justify-content:center;z-index:100;padding:20px;
+  }
+  .modal-overlay.show{display:flex}
+  .modal{
+    background:#fff;border-radius:14px;max-width:440px;width:100%;
+    padding:26px 26px 22px;box-shadow:0 24px 70px rgba(0,0,0,.35);
+    animation:modalpop .18s ease-out;
+  }
+  @keyframes modalpop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  .modal h3{font-family:var(--display);text-transform:uppercase;font-weight:400;
+    letter-spacing:.02em;font-size:24px;margin:0 0 12px}
+  .modal p{margin:0 0 12px;color:var(--muted);font-size:14.5px;line-height:1.55}
+  .modal .confirm-instruction{color:var(--text)}
+  .modal .kw{color:var(--red);font-weight:700;font-family:var(--display);letter-spacing:.06em;
+    background:rgba(237,28,36,.1);padding:2px 9px;border-radius:5px}
+  .modal input{width:100%;border:1px solid var(--border);border-radius:8px;
+    padding:11px 13px;font-family:var(--body);font-size:15px;margin:6px 0 18px;
+    text-transform:uppercase;letter-spacing:.04em}
+  .modal input:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px rgba(237,28,36,.16)}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end}
+  button.danger{background:var(--red);border-color:var(--red);color:#fff}
+  button.danger:hover{background:var(--red-hi);border-color:var(--red-hi)}
+  button.danger:disabled{background:var(--surface-2);border-color:var(--border);color:var(--faint);cursor:not-allowed}
+
   /* toast */
   .toast{
     position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
@@ -424,6 +451,19 @@
 
 <div class="toast" id="toast"></div>
 
+<div class="modal-overlay" id="clearModal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="clearTitle">
+    <h3 id="clearTitle">Clear all answers?</h3>
+    <p>This permanently deletes every answer in this workbook on this device. It can't be undone — if you want a copy, choose <b>Download as PDF</b> first.</p>
+    <p class="confirm-instruction">Type <span class="kw">CLEAR</span> to confirm.</p>
+    <input type="text" id="clearInput" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Type CLEAR">
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeClearModal()">Cancel</button>
+      <button class="danger" id="clearConfirmBtn" disabled onclick="doClear()">Clear everything</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ---------------- Workbook content ---------------- */
 const QUESTIONS = [
@@ -579,13 +619,29 @@ function load(){
   }
 }
 
-function clearAll(){
-  if(!confirm("Clear every answer? This can't be undone.")) return;
+// "Clear all" now opens a confirm modal that requires typing CLEAR.
+function clearAll(){ openClearModal(); }
+
+function openClearModal(){
+  const m = document.getElementById("clearModal");
+  const inp = document.getElementById("clearInput");
+  const btn = document.getElementById("clearConfirmBtn");
+  inp.value = "";
+  btn.disabled = true;
+  m.classList.add("show");
+  setTimeout(() => inp.focus(), 50);
+}
+function closeClearModal(){
+  document.getElementById("clearModal").classList.remove("show");
+}
+function doClear(){
   answers = {};
   try{ localStorage.removeItem(STORAGE_KEY); }catch(err){ /* ignore */ }
   document.querySelectorAll("textarea").forEach(ta => { ta.value=""; ta.style.height="auto"; });
+  document.querySelectorAll(".answer-print").forEach(d => d.textContent = "");
   updateProgress();
   setSaveState("","Cleared");
+  closeClearModal();
   showToast("All answers cleared");
 }
 
@@ -612,6 +668,27 @@ window.addEventListener("beforeprint", syncPrint);
 /* ---------------- Init ---------------- */
 render();
 load();
+
+/* Clear-confirm modal interactions */
+const clearInput = document.getElementById("clearInput");
+const clearConfirmBtn = document.getElementById("clearConfirmBtn");
+const clearModal = document.getElementById("clearModal");
+
+function clearKeywordMatches(){
+  return clearInput.value.trim().toUpperCase() === "CLEAR";
+}
+clearInput.addEventListener("input", () => {
+  clearConfirmBtn.disabled = !clearKeywordMatches();
+});
+clearInput.addEventListener("keydown", (e) => {
+  if(e.key === "Enter" && clearKeywordMatches()) doClear();
+});
+clearModal.addEventListener("click", (e) => {
+  if(e.target === clearModal) closeClearModal();   // click backdrop to dismiss
+});
+document.addEventListener("keydown", (e) => {
+  if(e.key === "Escape" && clearModal.classList.contains("show")) closeClearModal();
+});
 </script>
 </body>
 </html>
