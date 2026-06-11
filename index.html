@@ -184,6 +184,9 @@
   button:hover{border-color:var(--faint)}
   button.primary{background:var(--red);border-color:var(--red);color:#fff}
   button.primary:hover{background:var(--red-hi);border-color:var(--red-hi)}
+  button.primary.is-saved{background:var(--ok);border-color:var(--ok)}
+  button.primary.is-error{background:var(--faint);border-color:var(--faint)}
+  button:disabled{cursor:default}
   button.ghost{background:transparent;color:var(--muted)}
   button.ghost:hover{color:var(--text)}
 
@@ -402,7 +405,7 @@
 
   <div class="actions">
     <span class="grow" id="answeredCount">0 of 0 answered</span>
-    <button class="primary" onclick="saveNow()">Save now</button>
+    <button class="primary" onclick="manualSave(this)">Save now</button>
     <button onclick="downloadPDF()">Download as PDF</button>
     <button class="ghost" onclick="clearAll()">Clear all</button>
   </div>
@@ -529,10 +532,34 @@ function saveNow(){
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
     setSaveState("saved","Saved on this device");
+    return true;
   }catch(err){
     console.error("Save failed:", err);
     setSaveState("","Couldn't save — check browser settings");
+    return false;
   }
+}
+
+// Manual "Save now" button: gives feedback right at the click + a toast.
+function manualSave(btn){
+  const ok = saveNow();
+  if(!btn){ showToast(ok ? "Saved on this device" : "Couldn't save — check browser settings"); return; }
+  if(!btn.dataset.label) btn.dataset.label = btn.textContent;
+  btn.disabled = true;
+  if(ok){
+    btn.classList.add("is-saved");
+    btn.textContent = "✓ Saved";
+    showToast("Your answers are saved on this device");
+  }else{
+    btn.classList.add("is-error");
+    btn.textContent = "Couldn't save";
+    showToast("Couldn't save — check your browser's storage settings");
+  }
+  setTimeout(() => {
+    btn.textContent = btn.dataset.label;
+    btn.classList.remove("is-saved","is-error");
+    btn.disabled = false;
+  }, 1800);
 }
 
 function load(){
